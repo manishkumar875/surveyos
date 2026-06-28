@@ -49,9 +49,9 @@ export const createApp = (): Express => {
     }),
   );
   app.use(
-    pinoHttp({
+    (pinoHttp as any)({
       logger,
-      customProps: (req) => ({ requestId: req.id }),
+      customProps: (req: any) => ({ requestId: req.id }),
     }),
   );
   app.use(compression());

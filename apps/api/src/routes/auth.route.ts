@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-export const authRouter = Router();
+export const authRouter: Router = Router();
 
 interface SignInBody {
   email?: string;
