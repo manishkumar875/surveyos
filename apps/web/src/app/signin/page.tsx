@@ -1,6 +1,7 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,7 @@ export default function SignInPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as { error?: string };
 
       if (!response.ok) {
         setStatus('error');
@@ -36,7 +37,7 @@ export default function SignInPage() {
 
       setStatus('success');
       setMessage('Sign-in request succeeded. Authentication is scaffolded and ready for implementation.');
-    } catch (error) {
+    } catch {
       setStatus('error');
       setMessage('Unable to reach the API. Confirm the backend is running and CORS is configured.');
     }
@@ -53,7 +54,7 @@ export default function SignInPage() {
           </p>
         </div>
 
-        <form className="space-y-6 rounded-2xl border bg-card p-8 shadow-sm" onSubmit={handleSubmit}>
+        <form className="space-y-6 rounded-2xl border bg-card p-8 shadow-sm" onSubmit={(e) => void handleSubmit(e)}>
           <div className="grid gap-4">
             <label className="grid gap-2 text-sm font-medium">
               <span>Email</span>

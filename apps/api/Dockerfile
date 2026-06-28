@@ -32,6 +32,8 @@ COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/db/package.json ./packages/db/package.json
 COPY --from=builder /app/packages/db/dist ./packages/db/dist
+COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 RUN pnpm install --prod --frozen-lockfile=false
+RUN pnpm dlx prisma generate --schema packages/db/prisma/schema.prisma
 EXPOSE 4000
 CMD ["node", "apps/api/dist/main.js"]

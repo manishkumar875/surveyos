@@ -14,10 +14,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@surveyos/shared": ["packages/shared/src/index.ts"],
-      "@surveyos/db": ["packages/db/src/index.ts"]
-    }
+    "baseUrl": "."
   }
 }
