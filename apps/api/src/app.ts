@@ -49,8 +49,10 @@ export const createApp = (): Express => {
     }),
   );
   app.use(
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
     (pinoHttp as any)({
       logger,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
       customProps: (req: any) => ({ requestId: req.id }),
     }),
   );
