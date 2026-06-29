@@ -7,5 +7,58 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Phase 1 only: database and Prisma client foundation.
-// Business domain models will be added module by module after approval.
+// Phase 2: Authentication & Organization Management
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Organization {
+  id        String       @id @default(uuid())
+  name      String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  members   Membership[]
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  memberships  Membership[]
+  sessions     Session[]
+}
+
+model Membership {
+  id             String       @id @default(uuid())
+  role           Role         @default(MEMBER)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
