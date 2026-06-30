@@ -139,11 +139,22 @@ authRouter.post('/signin', (req, res) => {
 });
 
 import { authMiddleware } from '../middleware/auth.middleware.js';
+import { requireRole } from '../middleware/rbac.middleware.js';
+import { Role } from '@surveyos/db';
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 authRouter.get('/me', authMiddleware, (req, res) => {
   return res.status(200).json({
     success: true,
     user: req.user,
+  });
+});
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+authRouter.get('/admin-only', authMiddleware, requireRole(Role.ADMIN), (req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: 'Welcome Admin!',
+    membership: req.membership,
   });
 });

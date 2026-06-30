@@ -40,6 +40,7 @@ export const authMiddleware = async (
         lastName: true,
         isActive: true,
         createdAt: true,
+        updatedAt: true,
       },
     });
 
