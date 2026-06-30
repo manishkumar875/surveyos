@@ -72,23 +72,64 @@ authRouter.post('/signup', (req, res) => {
   })();
 });
 
-interface SignInBody {
-  email?: string;
-  password?: string;
-}
+const signInSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
 
 authRouter.post('/signin', (req, res) => {
-  const { email, password } = req.body as SignInBody;
+  void (async () => {
+    try {
+      const parseResult = signInSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: parseResult.error.errors,
+        });
+      }
 
-  if (!email || !password) {
-    return res.status(400).json({
-      success: false,
-      error: 'Email and password are required.',
-    });
-  }
+      const { email, password } = parseResult.data;
 
-  return res.status(501).json({
-    success: false,
-    error: 'Sign-in flow is scaffolded. Implement credential validation and token exchange here.',
-  });
+      const user = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid credentials',
+        });
+      }
+
+      const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+      if (!passwordMatch) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid credentials',
+        });
+      }
+
+      const sanitizedUser = {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+      };
+
+      return res.status(200).json({
+        success: true,
+        message: 'Sign-in successful',
+        user: sanitizedUser,
+      });
+    } catch (error) {
+      console.error('Error during user sign-in:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'An internal server error occurred',
+      });
+    }
+  })();
 });
