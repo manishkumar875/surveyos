@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import { prisma } from '@surveyos/db';
+import { generateAccessToken } from '../utils/jwt.util.js';
 
 export const authRouter: Router = Router();
 
@@ -119,10 +120,13 @@ authRouter.post('/signin', (req, res) => {
         createdAt: user.createdAt,
       };
 
+      const accessToken = generateAccessToken({ userId: user.id });
+
       return res.status(200).json({
         success: true,
         message: 'Sign-in successful',
         user: sanitizedUser,
+        accessToken,
       });
     } catch (error) {
       console.error('Error during user sign-in:', error);
