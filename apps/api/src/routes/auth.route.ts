@@ -137,3 +137,13 @@ authRouter.post('/signin', (req, res) => {
     }
   })();
 });
+
+import { authMiddleware } from '../middleware/auth.middleware.js';
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+authRouter.get('/me', authMiddleware, (req, res) => {
+  return res.status(200).json({
+    success: true,
+    user: req.user,
+  });
+});

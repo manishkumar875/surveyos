@@ -6,3 +6,7 @@ export const generateAccessToken = (payload: Record<string, unknown>): string =>
     expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
   });
 };
+
+export const verifyAccessToken = (token: string): jwt.JwtPayload | string => {
+  return jwt.verify(token, env.JWT_SECRET);
+};
