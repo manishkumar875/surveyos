@@ -121,3 +121,69 @@ organizationRouter.get('/', authMiddleware, (req, res) => {
     }
   })();
 });
+
+const getOrganizationParamsSchema = z.object({
+  organizationId: z.string().uuid('Invalid organization ID'),
+});
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+organizationRouter.get('/:organizationId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const parseResult = getOrganizationParamsSchema.safeParse(req.params);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: parseResult.error.errors,
+        });
+      }
+
+      const { organizationId } = parseResult.data;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: req.user.id,
+        },
+        include: {
+          organization: true,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found',
+        });
+      }
+
+      const responseData = {
+        id: membership.organization.id,
+        name: membership.organization.name,
+        createdAt: membership.organization.createdAt,
+        updatedAt: membership.organization.updatedAt,
+        membershipId: membership.id,
+        role: membership.role,
+      };
+
+      return res.status(200).json({
+        success: true,
+        data: responseData,
+      });
+    } catch (error) {
+      console.error('Error fetching organization details:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'An internal server error occurred',
+      });
+    }
+  })();
+});
