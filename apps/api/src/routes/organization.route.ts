@@ -73,3 +73,51 @@ organizationRouter.post('/', authMiddleware, (req, res) => {
     }
   })();
 });
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+organizationRouter.get('/', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const memberships = await prisma.membership.findMany({
+        where: {
+          userId: req.user.id,
+        },
+        include: {
+          organization: true,
+        },
+        orderBy: {
+          organization: {
+            createdAt: 'desc',
+          },
+        },
+      });
+
+      const organizations = memberships.map((membership) => ({
+        id: membership.organization.id,
+        name: membership.organization.name,
+        createdAt: membership.organization.createdAt,
+        updatedAt: membership.organization.updatedAt,
+        membershipId: membership.id,
+        role: membership.role,
+      }));
+
+      return res.status(200).json({
+        success: true,
+        data: organizations,
+      });
+    } catch (error) {
+      console.error('Error fetching organizations:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'An internal server error occurred',
+      });
+    }
+  })();
+});
