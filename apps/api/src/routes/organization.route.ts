@@ -187,3 +187,100 @@ organizationRouter.get('/:organizationId', authMiddleware, (req, res) => {
     }
   })();
 });
+
+const updateOrganizationSchema = z.object({
+  name: z.string().min(1, 'Organization name is required'),
+});
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+organizationRouter.patch('/:organizationId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const paramsResult = getOrganizationParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid organization ID',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const bodyResult = updateOrganizationSchema.safeParse(req.body);
+      if (!bodyResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: bodyResult.error.errors,
+        });
+      }
+
+      const { organizationId } = paramsResult.data;
+      const { name } = bodyResult.data;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: req.user.id,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found',
+        });
+      }
+
+      if (membership.role !== Role.OWNER && membership.role !== Role.ADMIN) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions to update organization',
+        });
+      }
+
+      const existingOrg = await prisma.organization.findFirst({
+        where: { name, id: { not: organizationId } },
+      });
+
+      if (existingOrg) {
+        return res.status(409).json({
+          success: false,
+          error: 'Organization with this name already exists',
+        });
+      }
+
+      const updatedOrganization = await prisma.organization.update({
+        where: { id: organizationId },
+        data: { name },
+      });
+
+      const responseData = {
+        id: updatedOrganization.id,
+        name: updatedOrganization.name,
+        createdAt: updatedOrganization.createdAt,
+        updatedAt: updatedOrganization.updatedAt,
+        membershipId: membership.id,
+        role: membership.role,
+      };
+
+      return res.status(200).json({
+        success: true,
+        message: 'Organization updated successfully',
+        data: responseData,
+      });
+    } catch (error) {
+      console.error('Error updating organization:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'An internal server error occurred',
+      });
+    }
+  })();
+});
