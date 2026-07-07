@@ -373,3 +373,135 @@ organizationRouter.get('/:organizationId/members', authMiddleware, (req, res) =>
     }
   })();
 });
+
+const addMemberSchema = z.object({
+  email: z.string().email('Invalid email format'),
+  role: z.enum([Role.ADMIN, Role.MEMBER], {
+    errorMap: () => ({ message: 'Role must be ADMIN or MEMBER' }),
+  }),
+});
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+organizationRouter.post('/:organizationId/members', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const paramsResult = getOrganizationParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid organization ID',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const bodyResult = addMemberSchema.safeParse(req.body);
+      if (!bodyResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: bodyResult.error.errors,
+        });
+      }
+
+      const { organizationId } = paramsResult.data;
+      const { email, role: targetRole } = bodyResult.data;
+
+      const requestingUserMembership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: req.user.id,
+        },
+      });
+
+      if (!requestingUserMembership) {
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found',
+        });
+      }
+
+      if (requestingUserMembership.role === Role.MEMBER) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions to add members',
+        });
+      }
+
+      if (requestingUserMembership.role === Role.ADMIN && targetRole === Role.ADMIN) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: ADMIN cannot add other ADMIN members',
+        });
+      }
+
+      const targetUser = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found',
+        });
+      }
+
+      const existingMembership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: targetUser.id,
+        },
+      });
+
+      if (existingMembership) {
+        return res.status(409).json({
+          success: false,
+          error: 'User is already a member of this organization',
+        });
+      }
+
+      const newMembership = await prisma.membership.create({
+        data: {
+          organizationId,
+          userId: targetUser.id,
+          role: targetRole,
+        },
+      });
+
+      const name =
+        [targetUser.firstName, targetUser.lastName].filter(Boolean).join(' ').trim() ||
+        'Unknown User';
+
+      const responseData = {
+        membershipId: newMembership.id,
+        role: newMembership.role,
+        createdAt: newMembership.createdAt,
+        updatedAt: newMembership.updatedAt,
+        user: {
+          id: targetUser.id,
+          name,
+          email: targetUser.email,
+          createdAt: targetUser.createdAt,
+        },
+      };
+
+      return res.status(201).json({
+        success: true,
+        message: 'Member added successfully',
+        data: responseData,
+      });
+    } catch (error) {
+      console.error('Error adding organization member:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'An internal server error occurred',
+      });
+    }
+  })();
+});
