@@ -83,12 +83,10 @@ projectRouter.post('/', authMiddleware, (req, res) => {
       }
 
       if (requestingUserMembership.role === Role.MEMBER) {
-        return res
-          .status(403)
-          .json({
-            success: false,
-            error: 'Forbidden: Insufficient permissions to create projects',
-          });
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions to create projects',
+        });
       }
 
       const newProject = await prisma.project.create({
@@ -183,6 +181,93 @@ projectRouter.get('/', authMiddleware, (req, res) => {
       });
     } catch (error) {
       console.error('Error listing projects:', error);
+      return res.status(500).json({ success: false, error: 'An internal server error occurred' });
+    }
+  })();
+});
+
+const getProjectParamsSchema = z.object({
+  organizationId: z.string().uuid('Invalid organization ID'),
+  projectId: z.string().uuid('Invalid project ID'),
+});
+
+// Get Project Details
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+projectRouter.get('/:projectId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const paramsResult = getProjectParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const { organizationId, projectId } = paramsResult.data;
+      const requestingUserId = req.user.id;
+
+      const requestingUserMembership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!requestingUserMembership) {
+        return res.status(404).json({ success: false, error: 'Organization not found' });
+      }
+
+      const project = await prisma.project.findFirst({
+        where: {
+          id: projectId,
+          organizationId,
+        },
+        include: {
+          createdBy: true,
+        },
+      });
+
+      if (!project) {
+        return res.status(404).json({ success: false, error: 'Project not found' });
+      }
+
+      const { createdBy } = project;
+      const createdByName =
+        [createdBy.firstName, createdBy.lastName].filter(Boolean).join(' ').trim() ||
+        'Unknown User';
+
+      const responseData = {
+        id: project.id,
+        organizationId: project.organizationId,
+        createdById: project.createdById,
+        name: project.name,
+        description: project.description,
+        clientName: project.clientName,
+        status: project.status,
+        startDate: project.startDate,
+        endDate: project.endDate,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        createdBy: {
+          id: createdBy.id,
+          name: createdByName,
+          email: createdBy.email,
+          createdAt: createdBy.createdAt,
+        },
+      };
+
+      return res.status(200).json({
+        success: true,
+        data: responseData,
+      });
+    } catch (error) {
+      console.error('Error fetching project details:', error);
       return res.status(500).json({ success: false, error: 'An internal server error occurred' });
     }
   })();
