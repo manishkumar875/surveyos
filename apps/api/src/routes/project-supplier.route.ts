@@ -18,6 +18,12 @@ const projectSupplierParamsSchema = z.object({
   projectId: z.string().uuid('Invalid project ID'),
 });
 
+const projectSupplierDetailsParamsSchema = z.object({
+  organizationId: z.string().uuid('Invalid organization ID'),
+  projectId: z.string().uuid('Invalid project ID'),
+  projectSupplierId: z.string().uuid('Invalid project supplier ID'),
+});
+
 const createProjectSupplierSchema = z.object({
   supplierId: z.string().uuid('Invalid supplier ID'),
   status: z.nativeEnum(ProjectSupplierStatus).optional(),
@@ -83,12 +89,10 @@ projectSupplierRouter.post('/', authMiddleware, (req, res) => {
       }
 
       if (membership.role === Role.MEMBER) {
-        return res
-          .status(403)
-          .json({
-            success: false,
-            error: 'Forbidden: Insufficient permissions to assign suppliers to projects',
-          });
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions to assign suppliers to projects',
+        });
       }
 
       const project = await prisma.project.findFirst({
@@ -243,6 +247,100 @@ projectSupplierRouter.get('/', authMiddleware, (req, res) => {
       return res.status(200).json({ success: true, data: formattedData });
     } catch (error) {
       console.error('Error listing project suppliers:', error);
+      return res.status(500).json({ success: false, error: 'An internal server error occurred' });
+    }
+  })();
+});
+
+// Get Project Supplier Details
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+projectSupplierRouter.get('/:projectSupplierId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const paramsResult = projectSupplierDetailsParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const { organizationId, projectId, projectSupplierId } = paramsResult.data;
+      const requestingUserId = req.user.id;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({ success: false, error: 'Organization not found' });
+      }
+
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, organizationId },
+      });
+
+      if (!project) {
+        return res.status(404).json({ success: false, error: 'Project not found' });
+      }
+
+      const projectSupplier = await prisma.projectSupplier.findFirst({
+        where: {
+          id: projectSupplierId,
+          organizationId,
+          projectId,
+        },
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+              contactName: true,
+              email: true,
+              phone: true,
+              website: true,
+              status: true,
+              notes: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+          project: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              clientName: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+      });
+
+      if (!projectSupplier) {
+        return res
+          .status(404)
+          .json({ success: false, error: 'Project supplier assignment not found' });
+      }
+
+      const { trackingToken, ...rest } = projectSupplier;
+      const formattedData = {
+        ...rest,
+        trackingUrl: `${env.API_PUBLIC_URL}/track/${trackingToken}`,
+      };
+
+      return res.status(200).json({ success: true, data: formattedData });
+    } catch (error) {
+      console.error('Error fetching project supplier details:', error);
       return res.status(500).json({ success: false, error: 'An internal server error occurred' });
     }
   })();
