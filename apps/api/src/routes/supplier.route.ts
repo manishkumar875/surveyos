@@ -10,6 +10,11 @@ const orgParamsSchema = z.object({
   organizationId: z.string().uuid('Invalid organization ID'),
 });
 
+const supplierParamsSchema = z.object({
+  organizationId: z.string().uuid('Invalid organization ID'),
+  supplierId: z.string().uuid('Invalid supplier ID'),
+});
+
 const createSupplierSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
   contactName: z.string().max(255).optional().nullable(),
@@ -68,12 +73,10 @@ supplierRouter.post('/', authMiddleware, (req, res) => {
       }
 
       if (membership.role === Role.MEMBER) {
-        return res
-          .status(403)
-          .json({
-            success: false,
-            error: 'Forbidden: Insufficient permissions to create a supplier',
-          });
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions to create a supplier',
+        });
       }
 
       const existingSupplier = await prisma.supplier.findUnique({
@@ -86,12 +89,10 @@ supplierRouter.post('/', authMiddleware, (req, res) => {
       });
 
       if (existingSupplier) {
-        return res
-          .status(409)
-          .json({
-            success: false,
-            error: 'A supplier with this name already exists in the organization',
-          });
+        return res.status(409).json({
+          success: false,
+          error: 'A supplier with this name already exists in the organization',
+        });
       }
 
       const supplier = await prisma.supplier.create({
@@ -183,6 +184,57 @@ supplierRouter.get('/', authMiddleware, (req, res) => {
       return res.status(200).json({ success: true, data: suppliers });
     } catch (error) {
       console.error('Error listing suppliers:', error);
+      return res.status(500).json({ success: false, error: 'An internal server error occurred' });
+    }
+  })();
+});
+
+// Get Supplier Details
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+supplierRouter.get('/:supplierId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const paramsResult = supplierParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const { organizationId, supplierId } = paramsResult.data;
+      const requestingUserId = req.user.id;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({ success: false, error: 'Organization not found' });
+      }
+
+      const supplier = await prisma.supplier.findFirst({
+        where: {
+          id: supplierId,
+          organizationId,
+        },
+      });
+
+      if (!supplier) {
+        return res.status(404).json({ success: false, error: 'Supplier not found' });
+      }
+
+      return res.status(200).json({ success: true, data: supplier });
+    } catch (error) {
+      console.error('Error fetching supplier details:', error);
       return res.status(500).json({ success: false, error: 'An internal server error occurred' });
     }
   })();
