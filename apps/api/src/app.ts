@@ -15,6 +15,7 @@ import { logger } from './logging/logger.js';
 import { healthRouter } from './routes/health.route.js';
 import { authRouter } from './routes/auth.route.js';
 import { organizationRouter } from './routes/organization.route.js';
+import { projectRouter } from './routes/project.route.js';
 
 export const createApp = (): Express => {
   const app = express();
@@ -66,6 +67,7 @@ export const createApp = (): Express => {
   app.use(`${API_PREFIX}/health`, healthRouter);
   app.use(`${API_PREFIX}/auth`, authRouter);
   app.use(`${API_PREFIX}/organizations`, organizationRouter);
+  app.use(`${API_PREFIX}/organizations/:organizationId/projects`, projectRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
