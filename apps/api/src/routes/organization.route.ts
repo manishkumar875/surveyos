@@ -505,3 +505,152 @@ organizationRouter.post('/:organizationId/members', authMiddleware, (req, res) =
     }
   })();
 });
+
+const updateMemberParamsSchema = z.object({
+  organizationId: z.string().uuid('Invalid organization ID'),
+  membershipId: z.string().uuid('Invalid membership ID'),
+});
+
+const updateMemberRoleSchema = z.object({
+  role: z.enum([Role.ADMIN, Role.MEMBER], {
+    errorMap: () => ({ message: 'Role must be ADMIN or MEMBER' }),
+  }),
+});
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+organizationRouter.patch('/:organizationId/members/:membershipId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const paramsResult = updateMemberParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const bodyResult = updateMemberRoleSchema.safeParse(req.body);
+      if (!bodyResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: bodyResult.error.errors,
+        });
+      }
+
+      const { organizationId, membershipId } = paramsResult.data;
+      const { role: newRole } = bodyResult.data;
+      const requestingUserId = req.user.id;
+
+      const requestingUserMembership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!requestingUserMembership) {
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found',
+        });
+      }
+
+      if (requestingUserMembership.role === Role.MEMBER) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions',
+        });
+      }
+
+      const targetMembership = await prisma.membership.findFirst({
+        where: {
+          id: membershipId,
+          organizationId,
+        },
+        include: {
+          user: true,
+        },
+      });
+
+      if (!targetMembership) {
+        return res.status(404).json({
+          success: false,
+          error: 'Membership not found',
+        });
+      }
+
+      if (targetMembership.userId === requestingUserId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Cannot change your own role',
+        });
+      }
+
+      if (targetMembership.role === Role.OWNER) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Cannot change the role of an OWNER',
+        });
+      }
+
+      if (requestingUserMembership.role === Role.ADMIN) {
+        if (targetMembership.role !== Role.MEMBER) {
+          return res.status(403).json({
+            success: false,
+            error: 'Forbidden: ADMIN can only modify MEMBER roles',
+          });
+        }
+        if (newRole === Role.ADMIN) {
+          return res.status(403).json({
+            success: false,
+            error: 'Forbidden: ADMIN cannot promote to ADMIN',
+          });
+        }
+      }
+
+      const updatedMembership = await prisma.membership.update({
+        where: { id: membershipId },
+        data: { role: newRole },
+        include: { user: true },
+      });
+
+      const { user } = updatedMembership;
+      const name =
+        [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || 'Unknown User';
+
+      const responseData = {
+        membershipId: updatedMembership.id,
+        role: updatedMembership.role,
+        createdAt: updatedMembership.createdAt,
+        updatedAt: updatedMembership.updatedAt,
+        user: {
+          id: user.id,
+          name,
+          email: user.email,
+          createdAt: user.createdAt,
+        },
+      };
+
+      return res.status(200).json({
+        success: true,
+        message: 'Member role updated successfully',
+        data: responseData,
+      });
+    } catch (error) {
+      console.error('Error updating member role:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'An internal server error occurred',
+      });
+    }
+  })();
+});
