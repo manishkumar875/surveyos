@@ -654,3 +654,127 @@ organizationRouter.patch('/:organizationId/members/:membershipId', authMiddlewar
     }
   })();
 });
+
+const removeMemberParamsSchema = z.object({
+  organizationId: z.string().uuid('Invalid organization ID'),
+  membershipId: z.string().uuid('Invalid membership ID'),
+});
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+organizationRouter.delete('/:organizationId/members/:membershipId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const paramsResult = removeMemberParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const { organizationId, membershipId } = paramsResult.data;
+      const requestingUserId = req.user.id;
+
+      const requestingUserMembership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!requestingUserMembership) {
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found',
+        });
+      }
+
+      if (requestingUserMembership.role === Role.MEMBER) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions',
+        });
+      }
+
+      const targetMembership = await prisma.membership.findFirst({
+        where: {
+          id: membershipId,
+          organizationId,
+        },
+        include: {
+          user: true,
+        },
+      });
+
+      if (!targetMembership) {
+        return res.status(404).json({
+          success: false,
+          error: 'Membership not found',
+        });
+      }
+
+      if (targetMembership.userId === requestingUserId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Cannot remove yourself',
+        });
+      }
+
+      if (targetMembership.role === Role.OWNER) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Cannot remove an OWNER',
+        });
+      }
+
+      if (requestingUserMembership.role === Role.ADMIN) {
+        if (targetMembership.role !== Role.MEMBER) {
+          return res.status(403).json({
+            success: false,
+            error: 'Forbidden: ADMIN can only remove MEMBER roles',
+          });
+        }
+      }
+
+      const deletedMembership = await prisma.membership.delete({
+        where: { id: membershipId },
+        include: { user: true },
+      });
+
+      const { user } = deletedMembership;
+      const name =
+        [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || 'Unknown User';
+
+      const responseData = {
+        membershipId: deletedMembership.id,
+        role: deletedMembership.role,
+        user: {
+          id: user.id,
+          name,
+          email: user.email,
+          createdAt: user.createdAt,
+        },
+      };
+
+      return res.status(200).json({
+        success: true,
+        message: 'Member removed successfully',
+        removedMember: responseData,
+      });
+    } catch (error) {
+      console.error('Error removing member:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'An internal server error occurred',
+      });
+    }
+  })();
+});
