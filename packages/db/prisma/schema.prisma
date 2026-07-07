@@ -93,8 +93,42 @@ model Project {
   createdById    String
   createdBy      User          @relation("UserProjects", fields: [createdById], references: [id], onDelete: Restrict)
 
+  integration    ProjectIntegration?
+
   @@index([organizationId])
   @@index([createdById])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Phase 5: Project Integration
+
+enum IntegrationStatus {
+  WAITING
+  TESTING
+  LIVE
+  FAILED
+}
+
+model ProjectIntegration {
+  id                     String            @id @default(uuid())
+  clientSurveyUrl        String?
+  status                 IntegrationStatus @default(WAITING)
+  parameterMapping       Json?
+
+  completeCallbackToken  String            @unique @default(uuid())
+  terminateCallbackToken String            @unique @default(uuid())
+  quotaFullCallbackToken String            @unique @default(uuid())
+  securityCallbackToken  String            @unique @default(uuid())
+  testCallbackToken      String            @unique @default(uuid())
+
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  projectId              String            @unique
+  project                Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
   @@index([status])
   @@index([createdAt])
 }
