@@ -18,6 +18,7 @@ import { organizationRouter } from './routes/organization.route.js';
 import { projectRouter } from './routes/project.route.js';
 import { supplierRouter } from './routes/supplier.route.js';
 import { projectIntegrationRouter } from './routes/project-integration.route.js';
+import { projectSupplierRouter } from './routes/project-supplier.route.js';
 
 export const createApp = (): Express => {
   const app = express();
@@ -74,6 +75,10 @@ export const createApp = (): Express => {
   app.use(
     `${API_PREFIX}/organizations/:organizationId/projects/:projectId/integration`,
     projectIntegrationRouter,
+  );
+  app.use(
+    `${API_PREFIX}/organizations/:organizationId/projects/:projectId/suppliers`,
+    projectSupplierRouter,
   );
 
   app.use(notFoundHandler);
