@@ -16,6 +16,7 @@ import { healthRouter } from './routes/health.route.js';
 import { authRouter } from './routes/auth.route.js';
 import { organizationRouter } from './routes/organization.route.js';
 import { projectRouter } from './routes/project.route.js';
+import { supplierRouter } from './routes/supplier.route.js';
 import { projectIntegrationRouter } from './routes/project-integration.route.js';
 
 export const createApp = (): Express => {
@@ -69,6 +70,7 @@ export const createApp = (): Express => {
   app.use(`${API_PREFIX}/auth`, authRouter);
   app.use(`${API_PREFIX}/organizations`, organizationRouter);
   app.use(`${API_PREFIX}/organizations/:organizationId/projects`, projectRouter);
+  app.use(`${API_PREFIX}/organizations/:organizationId/suppliers`, supplierRouter);
   app.use(
     `${API_PREFIX}/organizations/:organizationId/projects/:projectId/integration`,
     projectIntegrationRouter,
