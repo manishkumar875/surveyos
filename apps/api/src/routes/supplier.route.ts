@@ -25,6 +25,16 @@ const createSupplierSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
+const updateSupplierSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(255).optional(),
+  contactName: z.string().max(255).optional().nullable(),
+  email: z.string().email('Invalid email format').optional().nullable().or(z.literal('')),
+  phone: z.string().max(50).optional().nullable(),
+  website: z.string().url('Invalid URL format').optional().nullable().or(z.literal('')),
+  status: z.nativeEnum(SupplierStatus).optional(),
+  notes: z.string().optional().nullable(),
+});
+
 const listSuppliersQuerySchema = z.object({
   status: z.nativeEnum(SupplierStatus).optional(),
   search: z.string().optional(),
@@ -235,6 +245,187 @@ supplierRouter.get('/:supplierId', authMiddleware, (req, res) => {
       return res.status(200).json({ success: true, data: supplier });
     } catch (error) {
       console.error('Error fetching supplier details:', error);
+      return res.status(500).json({ success: false, error: 'An internal server error occurred' });
+    }
+  })();
+});
+
+// Update Supplier
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+supplierRouter.patch('/:supplierId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const paramsResult = supplierParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const bodyResult = updateSupplierSchema.safeParse(req.body);
+      if (!bodyResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: bodyResult.error.errors,
+        });
+      }
+
+      const { organizationId, supplierId } = paramsResult.data;
+      const updates = bodyResult.data;
+      const requestingUserId = req.user.id;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({ success: false, error: 'Organization not found' });
+      }
+
+      if (membership.role === Role.MEMBER) {
+        return res
+          .status(403)
+          .json({
+            success: false,
+            error: 'Forbidden: Insufficient permissions to update a supplier',
+          });
+      }
+
+      const existingSupplier = await prisma.supplier.findFirst({
+        where: {
+          id: supplierId,
+          organizationId,
+        },
+      });
+
+      if (!existingSupplier) {
+        return res.status(404).json({ success: false, error: 'Supplier not found' });
+      }
+
+      if (updates.name && updates.name !== existingSupplier.name) {
+        const duplicateSupplier = await prisma.supplier.findUnique({
+          where: {
+            organizationId_name: {
+              organizationId,
+              name: updates.name,
+            },
+          },
+        });
+
+        if (duplicateSupplier && duplicateSupplier.id !== supplierId) {
+          return res
+            .status(409)
+            .json({
+              success: false,
+              error: 'A supplier with this name already exists in the organization',
+            });
+        }
+      }
+
+      const dataToUpdate: Prisma.SupplierUpdateInput = {};
+      if (updates.name !== undefined) dataToUpdate.name = updates.name;
+      if (updates.contactName !== undefined) dataToUpdate.contactName = updates.contactName || null;
+      if (updates.email !== undefined) dataToUpdate.email = updates.email || null;
+      if (updates.phone !== undefined) dataToUpdate.phone = updates.phone || null;
+      if (updates.website !== undefined) dataToUpdate.website = updates.website || null;
+      if (updates.status !== undefined) dataToUpdate.status = updates.status;
+      if (updates.notes !== undefined) dataToUpdate.notes = updates.notes || null;
+
+      const updatedSupplier = await prisma.supplier.update({
+        where: { id: supplierId },
+        data: dataToUpdate,
+      });
+
+      return res.status(200).json({ success: true, data: updatedSupplier });
+    } catch (error) {
+      console.error('Error updating supplier:', error);
+      return res.status(500).json({ success: false, error: 'An internal server error occurred' });
+    }
+  })();
+});
+
+// Archive Supplier
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+supplierRouter.delete('/:supplierId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const paramsResult = supplierParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const { organizationId, supplierId } = paramsResult.data;
+      const requestingUserId = req.user.id;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({ success: false, error: 'Organization not found' });
+      }
+
+      if (membership.role === Role.MEMBER) {
+        return res
+          .status(403)
+          .json({
+            success: false,
+            error: 'Forbidden: Insufficient permissions to archive a supplier',
+          });
+      }
+
+      const existingSupplier = await prisma.supplier.findFirst({
+        where: {
+          id: supplierId,
+          organizationId,
+        },
+      });
+
+      if (!existingSupplier) {
+        return res.status(404).json({ success: false, error: 'Supplier not found' });
+      }
+
+      if (existingSupplier.status === SupplierStatus.ARCHIVED) {
+        return res.status(200).json({
+          success: true,
+          message: 'Supplier is already archived',
+          supplier: existingSupplier,
+        });
+      }
+
+      const updatedSupplier = await prisma.supplier.update({
+        where: { id: supplierId },
+        data: { status: SupplierStatus.ARCHIVED },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Supplier archived successfully',
+        supplier: updatedSupplier,
+      });
+    } catch (error) {
+      console.error('Error archiving supplier:', error);
       return res.status(500).json({ success: false, error: 'An internal server error occurred' });
     }
   })();
