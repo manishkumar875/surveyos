@@ -22,6 +22,7 @@ model Organization {
   updatedAt DateTime     @updatedAt
 
   members   Membership[]
+  projects  Project[]
 }
 
 model User {
@@ -34,8 +35,9 @@ model User {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  memberships  Membership[]
-  sessions     Session[]
+  memberships     Membership[]
+  sessions        Session[]
+  createdProjects Project[]    @relation("UserProjects")
 }
 
 model Membership {
@@ -62,4 +64,37 @@ model Session {
 
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Phase 4: Project Management
+
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+model Project {
+  id             String        @id @default(uuid())
+  name           String
+  description    String?
+  clientName     String
+  status         ProjectStatus @default(DRAFT)
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdById    String
+  createdBy      User          @relation("UserProjects", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@index([createdById])
+  @@index([status])
+  @@index([createdAt])
 }
