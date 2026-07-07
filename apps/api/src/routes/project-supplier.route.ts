@@ -30,6 +30,11 @@ const createProjectSupplierSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
+const updateProjectSupplierSchema = z.object({
+  status: z.nativeEnum(ProjectSupplierStatus).optional(),
+  notes: z.string().optional().nullable(),
+});
+
 const listProjectSuppliersQuerySchema = z.object({
   status: z.nativeEnum(ProjectSupplierStatus).optional(),
   search: z.string().optional(),
@@ -341,6 +346,224 @@ projectSupplierRouter.get('/:projectSupplierId', authMiddleware, (req, res) => {
       return res.status(200).json({ success: true, data: formattedData });
     } catch (error) {
       console.error('Error fetching project supplier details:', error);
+      return res.status(500).json({ success: false, error: 'An internal server error occurred' });
+    }
+  })();
+});
+
+// Update Project Supplier Assignment
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+projectSupplierRouter.patch('/:projectSupplierId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const paramsResult = projectSupplierDetailsParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const bodyResult = updateProjectSupplierSchema.safeParse(req.body);
+      if (!bodyResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: bodyResult.error.errors,
+        });
+      }
+
+      const { organizationId, projectId, projectSupplierId } = paramsResult.data;
+      const { status, notes } = bodyResult.data;
+      const requestingUserId = req.user.id;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({ success: false, error: 'Organization not found' });
+      }
+
+      if (membership.role === Role.MEMBER) {
+        return res
+          .status(403)
+          .json({
+            success: false,
+            error: 'Forbidden: Insufficient permissions to update project supplier assignments',
+          });
+      }
+
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, organizationId },
+      });
+
+      if (!project) {
+        return res.status(404).json({ success: false, error: 'Project not found' });
+      }
+
+      const projectSupplier = await prisma.projectSupplier.findFirst({
+        where: {
+          id: projectSupplierId,
+          organizationId,
+          projectId,
+        },
+      });
+
+      if (!projectSupplier) {
+        return res
+          .status(404)
+          .json({ success: false, error: 'Project supplier assignment not found' });
+      }
+
+      const updatedProjectSupplier = await prisma.projectSupplier.update({
+        where: { id: projectSupplierId },
+        data: {
+          ...(status !== undefined && { status }),
+          ...(notes !== undefined && { notes }),
+        },
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+              contactName: true,
+              email: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      const { trackingToken, ...rest } = updatedProjectSupplier;
+      const formattedData = {
+        ...rest,
+        trackingUrl: `${env.API_PUBLIC_URL}/track/${trackingToken}`,
+      };
+
+      return res.status(200).json({ success: true, data: formattedData });
+    } catch (error) {
+      console.error('Error updating project supplier assignment:', error);
+      return res.status(500).json({ success: false, error: 'An internal server error occurred' });
+    }
+  })();
+});
+
+// Archive Project Supplier Assignment
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+projectSupplierRouter.delete('/:projectSupplierId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const paramsResult = projectSupplierDetailsParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const { organizationId, projectId, projectSupplierId } = paramsResult.data;
+      const requestingUserId = req.user.id;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({ success: false, error: 'Organization not found' });
+      }
+
+      if (membership.role === Role.MEMBER) {
+        return res
+          .status(403)
+          .json({
+            success: false,
+            error: 'Forbidden: Insufficient permissions to archive project supplier assignments',
+          });
+      }
+
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, organizationId },
+      });
+
+      if (!project) {
+        return res.status(404).json({ success: false, error: 'Project not found' });
+      }
+
+      const projectSupplier = await prisma.projectSupplier.findFirst({
+        where: {
+          id: projectSupplierId,
+          organizationId,
+          projectId,
+        },
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+              contactName: true,
+              email: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      if (!projectSupplier) {
+        return res
+          .status(404)
+          .json({ success: false, error: 'Project supplier assignment not found' });
+      }
+
+      let updatedAssignment = projectSupplier;
+
+      if (projectSupplier.status !== ProjectSupplierStatus.ARCHIVED) {
+        updatedAssignment = await prisma.projectSupplier.update({
+          where: { id: projectSupplierId },
+          data: { status: ProjectSupplierStatus.ARCHIVED },
+          include: {
+            supplier: {
+              select: {
+                id: true,
+                name: true,
+                contactName: true,
+                email: true,
+                status: true,
+              },
+            },
+          },
+        });
+      }
+
+      const { trackingToken, ...rest } = updatedAssignment;
+      const formattedData = {
+        ...rest,
+        trackingUrl: `${env.API_PUBLIC_URL}/track/${trackingToken}`,
+      };
+
+      return res.status(200).json({
+        success: true,
+        message: 'Project supplier assignment archived successfully',
+        assignment: formattedData,
+      });
+    } catch (error) {
+      console.error('Error archiving project supplier assignment:', error);
       return res.status(500).json({ success: false, error: 'An internal server error occurred' });
     }
   })();
