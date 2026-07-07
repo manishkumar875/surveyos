@@ -284,3 +284,92 @@ organizationRouter.patch('/:organizationId', authMiddleware, (req, res) => {
     }
   })();
 });
+
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+organizationRouter.get('/:organizationId/members', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const paramsResult = getOrganizationParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid organization ID',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const { organizationId } = paramsResult.data;
+
+      const requestingUserMembership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: req.user.id,
+        },
+      });
+
+      if (!requestingUserMembership) {
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found',
+        });
+      }
+
+      if (
+        requestingUserMembership.role !== Role.OWNER &&
+        requestingUserMembership.role !== Role.ADMIN
+      ) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions to view members',
+        });
+      }
+
+      const memberships = await prisma.membership.findMany({
+        where: {
+          organizationId,
+        },
+        include: {
+          user: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      });
+
+      const formattedMembers = memberships.map((membership) => {
+        const { user } = membership;
+        const name =
+          [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || 'Unknown User';
+
+        return {
+          id: user.id,
+          name,
+          email: user.email,
+          createdAt: user.createdAt,
+          membershipId: membership.id,
+          role: membership.role,
+          membershipCreatedAt: membership.createdAt,
+          membershipUpdatedAt: membership.updatedAt,
+        };
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: formattedMembers,
+      });
+    } catch (error) {
+      console.error('Error fetching organization members:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'An internal server error occurred',
+      });
+    }
+  })();
+});
