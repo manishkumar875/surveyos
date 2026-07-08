@@ -28,6 +28,8 @@ model Organization {
   respondentSessions RespondentSession[]
   callbackEvents     CallbackEvent[]
   projectQuotas      ProjectQuota[]
+  auditLogs          AuditLog[]
+  fraudSignals       FraudSignal[]
 }
 
 model User {
@@ -43,6 +45,7 @@ model User {
   memberships     Membership[]
   sessions        Session[]
   createdProjects Project[]    @relation("UserProjects")
+  auditLogs       AuditLog[]
 }
 
 model Membership {
@@ -104,6 +107,7 @@ model Project {
   respondentSessions RespondentSession[]
   callbackEvents     CallbackEvent[]
   quotas             ProjectQuota[]
+  fraudSignals       FraudSignal[]
 
   @@index([organizationId])
   @@index([createdById])
@@ -171,6 +175,7 @@ model Supplier {
 
   projects           ProjectSupplier[]
   respondentSessions RespondentSession[]
+  fraudSignals       FraudSignal[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -206,6 +211,7 @@ model ProjectSupplier {
   updatedAt DateTime @updatedAt
 
   respondentSessions RespondentSession[]
+  fraudSignals       FraudSignal[]
 
   @@unique([projectId, supplierId])
   @@index([organizationId])
@@ -259,6 +265,7 @@ model RespondentSession {
   updatedAt DateTime @updatedAt
 
   callbackEvents CallbackEvent[]
+  fraudSignals   FraudSignal[]
 
   @@index([organizationId])
   @@index([projectId])
@@ -358,6 +365,106 @@ model ProjectQuota {
   @@unique([projectId, name])
   @@index([organizationId])
   @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Phase 10: Audit Logs & Fraud Signals
+
+enum AuditActionType {
+  CREATE
+  UPDATE
+  DELETE
+  ARCHIVE
+  LOGIN
+  LOGOUT
+  CALLBACK_RECEIVED
+  CALLBACK_PROCESSED
+  TRACKING_REDIRECT
+  STATUS_CHANGE
+  SECURITY_EVENT
+}
+
+model AuditLog {
+  id             String        @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  action         AuditActionType
+  entityType     String?
+  entityId       String?
+  message        String?
+  ipAddress      String?
+  userAgent      String?
+  metadata       Json?
+  
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+enum FraudSignalType {
+  DUPLICATE_SUPPLIER_RESPONDENT
+  DUPLICATE_IP
+  RAPID_COMPLETION
+  MULTIPLE_OUTCOMES
+  SECURITY_CALLBACK
+  SUSPICIOUS_USER_AGENT
+}
+
+enum FraudSignalSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FraudSignalStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
+}
+
+model FraudSignal {
+  id                  String               @id @default(uuid())
+  
+  organizationId      String
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  projectId           String?
+  project             Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  supplierId          String?
+  supplier            Supplier?            @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  
+  projectSupplierId   String?
+  projectSupplier     ProjectSupplier?     @relation(fields: [projectSupplierId], references: [id], onDelete: SetNull)
+  
+  respondentSessionId String?
+  respondentSession   RespondentSession?   @relation(fields: [respondentSessionId], references: [id], onDelete: SetNull)
+  
+  type                FraudSignalType
+  severity            FraudSignalSeverity  @default(LOW)
+  status              FraudSignalStatus    @default(OPEN)
+  reason              String?
+  metadata            Json?
+  
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([supplierId])
+  @@index([projectSupplierId])
+  @@index([respondentSessionId])
+  @@index([type])
+  @@index([severity])
   @@index([status])
   @@index([createdAt])
 }
