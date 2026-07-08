@@ -19,6 +19,7 @@ import { projectRouter } from './routes/project.route.js';
 import { supplierRouter } from './routes/supplier.route.js';
 import { projectIntegrationRouter } from './routes/project-integration.route.js';
 import { projectSupplierRouter } from './routes/project-supplier.route.js';
+import { trackingRouter } from './routes/tracking.route.js';
 
 export const createApp = (): Express => {
   const app = express();
@@ -80,6 +81,8 @@ export const createApp = (): Express => {
     `${API_PREFIX}/organizations/:organizationId/projects/:projectId/suppliers`,
     projectSupplierRouter,
   );
+
+  app.use('/track', trackingRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
