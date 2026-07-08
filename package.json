@@ -19,6 +19,7 @@
     "db:generate": "pnpm --filter @surveyos/db db:generate",
     "db:migrate": "pnpm --filter @surveyos/db db:migrate",
     "db:studio": "pnpm --filter @surveyos/db db:studio",
+    "smoke:test": "node scripts/smoke-test.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
