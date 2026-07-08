@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unnecessary-type-assertion */
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -8,6 +9,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { organizationApi } from '@/lib/organization-api';
 import type { Organization, OrganizationMember } from '@/types';
 import { FolderKanban, Users, BarChart3, ScrollText, ShieldAlert } from 'lucide-react';
+import Link from 'next/link';
 
 export default function OrganizationDetailsPage() {
   const params = useParams();
@@ -135,6 +137,29 @@ export default function OrganizationDetailsPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {modules.map((module) => {
             const Icon = module.icon;
+
+            // Allow clicking Projects module to go to projects list
+            if (module.title === 'Projects') {
+              return (
+                <Link
+                  href={'/projects' as any}
+                  key={module.title}
+                  className="rounded-xl border bg-card text-card-foreground shadow transition-all hover:border-primary/50 hover:shadow-md cursor-pointer block"
+                >
+                  <div className="p-6 flex flex-col items-center text-center space-y-2">
+                    <div className={`p-3 rounded-full bg-muted ${module.color}`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <h4 className="font-semibold">{module.title}</h4>
+                    <p className="text-sm text-muted-foreground">{module.description}</p>
+                    <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-semibold mt-2">
+                      Available
+                    </span>
+                  </div>
+                </Link>
+              );
+            }
+
             return (
               <div
                 key={module.title}

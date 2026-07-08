@@ -19,7 +19,7 @@ export function Sidebar() {
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Organizations', href: '/organizations', icon: Briefcase },
-    { name: 'Projects', href: '#', icon: FolderKanban, disabled: true },
+    { name: 'Projects', href: '/projects', icon: FolderKanban },
     { name: 'Suppliers', href: '#', icon: Users, disabled: true },
     { name: 'Reports', href: '#', icon: BarChart3, disabled: true },
     { name: 'Audit Logs', href: '#', icon: ScrollText, disabled: true },

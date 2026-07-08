@@ -33,16 +33,33 @@ export interface OrganizationMember {
 export interface Project {
   id: string;
   name: string;
+  description?: string | null;
+  clientName: string;
   organizationId: string;
-  status: string; // DRAFT, LIVE, PAUSED, COMPLETED
-  country: string;
-  targetCompletes: number;
-  incidenceRate: number;
-  loi: number;
-  cpi: number;
-  timeline?: string;
+  status: string; // DRAFT, ACTIVE, PAUSED, COMPLETED, ARCHIVED
+  startDate?: string | null;
+  endDate?: string | null;
+  createdById: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreateProjectInput {
+  name: string;
+  description?: string;
+  clientName?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  status?: string;
+}
+
+export interface UpdateProjectInput {
+  name?: string;
+  description?: string;
+  clientName?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  status?: string;
 }
 
 export interface ProjectIntegration {
