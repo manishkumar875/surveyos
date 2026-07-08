@@ -7,8 +7,11 @@ import {
   ProjectStatus,
   IntegrationStatus,
   RespondentSessionStatus,
+  FraudSignalType,
+  FraudSignalSeverity,
   type Prisma,
 } from '@surveyos/db';
+import { createFraudSignalSafely } from '../utils/fraud-signal.util.js';
 
 export const trackingRouter: Router = Router();
 
@@ -121,6 +124,83 @@ trackingRouter.get('/:trackingToken', (req, res) => {
           metadata: metadataJson,
         },
       });
+
+      // Fraud Checks
+      void (async () => {
+        try {
+          if (supplierRespondentId) {
+            const existing = await prisma.respondentSession.findFirst({
+              where: {
+                organizationId: organization.id,
+                projectId: project.id,
+                supplierId: supplier.id,
+                supplierRespondentId,
+                id: { not: session.id },
+              },
+            });
+            if (existing) {
+              await createFraudSignalSafely({
+                organizationId: organization.id,
+                projectId: project.id,
+                supplierId: supplier.id,
+                projectSupplierId: projectSupplier.id,
+                respondentSessionId: session.id,
+                type: FraudSignalType.DUPLICATE_SUPPLIER_RESPONDENT,
+                severity: FraudSignalSeverity.MEDIUM,
+                reason: 'Duplicate supplier respondent id detected for this project/supplier',
+                metadata: { matchingSessionId: existing.id },
+              });
+            }
+          }
+
+          if (ipAddress) {
+            const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const count = await prisma.respondentSession.count({
+              where: {
+                projectId: project.id,
+                ipAddress,
+                startedAt: { gte: windowStart },
+              },
+            });
+            if (count >= 3) {
+              await createFraudSignalSafely({
+                organizationId: organization.id,
+                projectId: project.id,
+                supplierId: supplier.id,
+                projectSupplierId: projectSupplier.id,
+                respondentSessionId: session.id,
+                type: FraudSignalType.DUPLICATE_IP,
+                severity: FraudSignalSeverity.LOW,
+                reason: 'Multiple sessions detected from same IP address',
+                metadata: { count, window: '24h' },
+              });
+            }
+          }
+
+          const uaLower = userAgent?.toLowerCase() || '';
+          if (
+            !userAgent ||
+            uaLower.includes('bot') ||
+            uaLower.includes('crawler') ||
+            uaLower.includes('spider') ||
+            uaLower.includes('headless')
+          ) {
+            await createFraudSignalSafely({
+              organizationId: organization.id,
+              projectId: project.id,
+              supplierId: supplier.id,
+              projectSupplierId: projectSupplier.id,
+              respondentSessionId: session.id,
+              type: FraudSignalType.SUSPICIOUS_USER_AGENT,
+              severity: FraudSignalSeverity.LOW,
+              reason: 'Suspicious or missing user agent detected',
+              metadata: { userAgent },
+            });
+          }
+        } catch (e) {
+          console.error('[FraudDetection] Error in tracking fraud checks:', e);
+        }
+      })();
 
       // Generate redirect URL
       const redirectUrl = new URL(integration.clientSurveyUrl);

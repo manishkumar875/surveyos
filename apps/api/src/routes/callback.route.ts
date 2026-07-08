@@ -6,8 +6,11 @@ import {
   CallbackEventStatus,
   RespondentSessionStatus,
   QuotaStatus,
+  FraudSignalType,
+  FraudSignalSeverity,
   type Prisma,
 } from '@surveyos/db';
+import { createFraudSignalSafely } from '../utils/fraud-signal.util.js';
 
 export const callbackRouter: Router = Router();
 
@@ -174,6 +177,18 @@ const handleCallback = async (req: Request, res: Response, outcome: CallbackOutc
           errorMessage: 'Respondent session not found',
         },
       });
+
+      if (outcome === CallbackOutcomeType.SECURITY) {
+        void createFraudSignalSafely({
+          organizationId: project.organizationId,
+          projectId: project.id,
+          type: FraudSignalType.SECURITY_CALLBACK,
+          severity: FraudSignalSeverity.HIGH,
+          reason: 'Security callback received from client survey platform',
+          metadata: { callbackEventId: callbackEvent.id, outcome },
+        });
+      }
+
       return res.status(404).json({
         success: false,
         error: 'Respondent session not found',
@@ -196,6 +211,87 @@ const handleCallback = async (req: Request, res: Response, outcome: CallbackOutc
       RespondentSessionStatus.QUOTA_FULL,
       RespondentSessionStatus.SECURITY,
     ];
+
+    // Fraud checks related to session
+    void (async () => {
+      try {
+        if (outcome === CallbackOutcomeType.SECURITY) {
+          await createFraudSignalSafely({
+            organizationId: project.organizationId,
+            projectId: project.id,
+            supplierId: session.supplierId,
+            projectSupplierId: session.projectSupplierId,
+            respondentSessionId: session.id,
+            type: FraudSignalType.SECURITY_CALLBACK,
+            severity: FraudSignalSeverity.HIGH,
+            reason: 'Security callback received from client survey platform',
+            metadata: { callbackEventId: callbackEvent.id, outcome },
+          });
+        }
+
+        if (finalStatuses.includes(session.status)) {
+          let targetForComparison: RespondentSessionStatus = RespondentSessionStatus.COMPLETED;
+          switch (outcome) {
+            case CallbackOutcomeType.COMPLETE:
+              targetForComparison = RespondentSessionStatus.COMPLETED;
+              break;
+            case CallbackOutcomeType.TERMINATE:
+              targetForComparison = RespondentSessionStatus.TERMINATED;
+              break;
+            case CallbackOutcomeType.QUOTA_FULL:
+              targetForComparison = RespondentSessionStatus.QUOTA_FULL;
+              break;
+            case CallbackOutcomeType.SECURITY:
+              targetForComparison = RespondentSessionStatus.SECURITY;
+              break;
+          }
+          if (session.status !== targetForComparison) {
+            await createFraudSignalSafely({
+              organizationId: project.organizationId,
+              projectId: project.id,
+              supplierId: session.supplierId,
+              projectSupplierId: session.projectSupplierId,
+              respondentSessionId: session.id,
+              type: FraudSignalType.MULTIPLE_OUTCOMES,
+              severity: FraudSignalSeverity.HIGH,
+              reason:
+                'Multiple conflicting final outcomes received for the same respondent session',
+              metadata: {
+                existingStatus: session.status,
+                incomingOutcome: outcome,
+                callbackEventId: callbackEvent.id,
+              },
+            });
+          }
+        }
+
+        if (outcome === CallbackOutcomeType.COMPLETE) {
+          const startTime = session.redirectedAt || session.startedAt;
+          if (startTime) {
+            const secondsToComplete = (Date.now() - startTime.getTime()) / 1000;
+            if (secondsToComplete < 60) {
+              await createFraudSignalSafely({
+                organizationId: project.organizationId,
+                projectId: project.id,
+                supplierId: session.supplierId,
+                projectSupplierId: session.projectSupplierId,
+                respondentSessionId: session.id,
+                type: FraudSignalType.RAPID_COMPLETION,
+                severity: FraudSignalSeverity.MEDIUM,
+                reason: 'Respondent completed survey unusually quickly',
+                metadata: {
+                  secondsToComplete,
+                  thresholdSeconds: 60,
+                  callbackEventId: callbackEvent.id,
+                },
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[FraudDetection] Error in callback fraud checks:', e);
+      }
+    })();
 
     if (finalStatuses.includes(session.status)) {
       callbackEvent = await prisma.callbackEvent.update({
