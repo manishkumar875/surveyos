@@ -2,7 +2,15 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Folders, Building2, ShieldAlert, Activity } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  Briefcase,
+  FolderKanban,
+  BarChart3,
+  ScrollText,
+  ShieldAlert,
+} from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 export function Sidebar() {
@@ -10,11 +18,12 @@ export function Sidebar() {
 
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Organizations', href: '/dashboard/organizations', icon: Building2 },
-    { name: 'Projects', href: '/dashboard/projects', icon: Folders },
-    { name: 'Suppliers', href: '/dashboard/suppliers', icon: Users },
-    { name: 'Fraud Signals', href: '/dashboard/fraud-signals', icon: ShieldAlert },
-    { name: 'Audit Logs', href: '/dashboard/audit-logs', icon: Activity },
+    { name: 'Organizations', href: '/organizations', icon: Briefcase },
+    { name: 'Projects', href: '#', icon: FolderKanban, disabled: true },
+    { name: 'Suppliers', href: '#', icon: Users, disabled: true },
+    { name: 'Reports', href: '#', icon: BarChart3, disabled: true },
+    { name: 'Audit Logs', href: '#', icon: ScrollText, disabled: true },
+    { name: 'Fraud Signals', href: '#', icon: ShieldAlert, disabled: true },
   ];
 
   return (
@@ -32,10 +41,12 @@ export function Sidebar() {
             return (
               <Link
                 key={item.name}
-                href={item.href as React.ComponentProps<typeof Link>['href']}
+                href={
+                  item.disabled ? '#' : (item.href as React.ComponentProps<typeof Link>['href'])
+                }
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
                   isActive ? 'bg-muted text-primary' : 'text-muted-foreground hover:text-primary'
-                }`}
+                } ${item.disabled ? 'pointer-events-none opacity-50' : ''}`}
               >
                 <Icon className="h-4 w-4" />
                 {item.name}

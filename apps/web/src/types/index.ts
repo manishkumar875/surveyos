@@ -17,6 +17,19 @@ export interface Organization {
   updatedAt: string;
 }
 
+export type MembershipRole = 'OWNER' | 'ADMIN' | 'MEMBER';
+
+export interface OrganizationMember {
+  id: string; // User ID
+  name: string;
+  email: string;
+  role: MembershipRole;
+  membershipId: string;
+  createdAt: string; // User created at
+  membershipCreatedAt?: string;
+  membershipUpdatedAt?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
