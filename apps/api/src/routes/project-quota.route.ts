@@ -10,6 +10,12 @@ const projectQuotaParamsSchema = z.object({
   projectId: z.string().uuid('Invalid project ID'),
 });
 
+const projectQuotaDetailsParamsSchema = z.object({
+  organizationId: z.string().uuid('Invalid organization ID'),
+  projectId: z.string().uuid('Invalid project ID'),
+  quotaId: z.string().uuid('Invalid quota ID'),
+});
+
 const createProjectQuotaSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional().nullable(),
@@ -210,6 +216,93 @@ projectQuotaRouter.get('/', authMiddleware, (req, res) => {
       });
     } catch (error) {
       console.error('Error listing project quotas:', error);
+      return res.status(500).json({ success: false, error: 'An internal server error occurred' });
+    }
+  })();
+});
+
+// Get Project Quota Details
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+projectQuotaRouter.get('/:quotaId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const paramsResult = projectQuotaDetailsParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const { organizationId, projectId, quotaId } = paramsResult.data;
+      const requestingUserId = req.user.id;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({ success: false, error: 'Organization not found' });
+      }
+
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, organizationId },
+      });
+
+      if (!project) {
+        return res.status(404).json({ success: false, error: 'Project not found' });
+      }
+
+      const projectQuota = await prisma.projectQuota.findFirst({
+        where: {
+          id: quotaId,
+          organizationId,
+          projectId,
+        },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              clientName: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+      });
+
+      if (!projectQuota) {
+        return res.status(404).json({ success: false, error: 'Quota not found' });
+      }
+
+      const remainingCompletes = Math.max(
+        0,
+        projectQuota.targetCompletes - projectQuota.currentCompletes,
+      );
+      const completionRate =
+        projectQuota.targetCompletes > 0
+          ? Number((projectQuota.currentCompletes / projectQuota.targetCompletes).toFixed(4))
+          : 0;
+
+      const formattedData = {
+        ...projectQuota,
+        remainingCompletes,
+        completionRate,
+      };
+
+      return res.status(200).json({ success: true, data: formattedData });
+    } catch (error) {
+      console.error('Error fetching project quota details:', error);
       return res.status(500).json({ success: false, error: 'An internal server error occurred' });
     }
   })();
