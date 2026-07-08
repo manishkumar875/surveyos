@@ -5,6 +5,7 @@ import {
   CallbackOutcomeType,
   CallbackEventStatus,
   RespondentSessionStatus,
+  QuotaStatus,
   type Prisma,
 } from '@surveyos/db';
 
@@ -230,30 +231,103 @@ const handleCallback = async (req: Request, res: Response, outcome: CallbackOutc
         break;
     }
 
-    await prisma.respondentSession.update({
-      where: { id: session.id },
-      data: {
-        status: targetSessionStatus,
-        completedAt: new Date(),
-      },
+    let quotasUpdated = 0;
+    let quotasFull = 0;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.respondentSession.update({
+        where: { id: session.id },
+        data: {
+          status: targetSessionStatus,
+          completedAt: new Date(),
+        },
+      });
+
+      callbackEvent = await tx.callbackEvent.update({
+        where: { id: callbackEvent.id },
+        data: {
+          status: CallbackEventStatus.PROCESSED,
+          processedAt: new Date(),
+        },
+      });
+
+      if (outcome === CallbackOutcomeType.COMPLETE) {
+        const activeQuotas = await tx.projectQuota.findMany({
+          where: {
+            organizationId: project.organizationId,
+            projectId: project.id,
+            status: QuotaStatus.ACTIVE,
+          },
+        });
+
+        for (const quota of activeQuotas) {
+          let matches = true;
+
+          if (quota.criteria && typeof quota.criteria === 'object') {
+            const criteria = quota.criteria as Record<string, unknown>;
+            const sessionData: Record<string, unknown> = {
+              supplierId: session.supplierId,
+              projectSupplierId: session.projectSupplierId,
+              supplierRespondentId: session.supplierRespondentId,
+            };
+
+            if (session.metadata && typeof session.metadata === 'object') {
+              Object.assign(sessionData, session.metadata);
+            }
+
+            for (const [key, value] of Object.entries(criteria)) {
+              if (sessionData[key] !== value) {
+                matches = false;
+                break;
+              }
+            }
+          }
+
+          if (matches) {
+            const updatedQuota = await tx.projectQuota.update({
+              where: { id: quota.id },
+              data: {
+                currentCompletes: {
+                  increment: 1,
+                },
+              },
+            });
+            quotasUpdated++;
+
+            if (updatedQuota.currentCompletes >= updatedQuota.targetCompletes) {
+              await tx.projectQuota.update({
+                where: { id: quota.id },
+                data: { status: QuotaStatus.FULL },
+              });
+              quotasFull++;
+            }
+          }
+        }
+      }
     });
 
-    callbackEvent = await prisma.callbackEvent.update({
-      where: { id: callbackEvent.id },
-      data: {
-        status: CallbackEventStatus.PROCESSED,
-        processedAt: new Date(),
-      },
-    });
-
-    return res.status(200).json({
+    const responsePayload: Record<string, unknown> = {
       success: true,
       message: 'Callback processed successfully',
       outcome,
       processed: true,
       callbackEventId: callbackEvent.id,
       respondentSessionId: session.id,
-    });
+    };
+
+    if (outcome === CallbackOutcomeType.COMPLETE) {
+      responsePayload.quotaUpdates = {
+        quotasUpdated,
+        quotasFull,
+      };
+    } else {
+      responsePayload.quotaUpdates = {
+        quotasUpdated: 0,
+        quotasFull: 0,
+      };
+    }
+
+    return res.status(200).json(responsePayload);
   } catch (error) {
     console.error(`Error processing callback (${outcome}):`, error);
     return res.status(500).json({ success: false, error: 'An internal server error occurred' });
