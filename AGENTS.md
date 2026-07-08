@@ -2,14 +2,12 @@
 
 SurveyOS - AI Development Guide (Source of Truth)
 
-Project Overview
+## Project Overview
 
 SurveyOS is a Survey Operations Platform built for Market Research Agencies.
 
 SurveyOS is NOT a survey creation platform.
-
 SurveyOS is NOT a questionnaire platform.
-
 SurveyOS is NOT a survey programming platform.
 
 SurveyOS never owns survey questions, survey logic, survey responses, or survey databases.
@@ -20,13 +18,11 @@ This document is the permanent Source of Truth for the project.
 
 Before implementing any feature, always understand and follow this document.
 
-⸻
+---
 
-Business Workflow
+## Business Workflow
 
-Step 1
-
-The Client creates a survey inside their own survey platform.
+1. The Client creates a survey inside their own survey platform.
 
 The Client owns:
 
@@ -39,11 +35,7 @@ The Client owns:
 
 SurveyOS never creates or stores these.
 
-⸻
-
-Step 2
-
-The Client awards a project to a Market Research Agency.
+2. The Client awards a project to a Market Research Agency.
 
 The Client provides:
 
@@ -56,19 +48,9 @@ The Client provides:
 - CPI
 - Timeline
 
-⸻
+3. The Market Research Agency creates a Project inside SurveyOS.
 
-Step 3
-
-The Market Research Agency creates a Project inside SurveyOS.
-
-SurveyOS becomes responsible for operational management.
-
-⸻
-
-Step 4
-
-SurveyOS automatically generates callback URLs for the project.
+4. SurveyOS automatically generates callback URLs for the project.
 
 Callbacks include:
 
@@ -78,52 +60,21 @@ Callbacks include:
 - Security Callback
 - Test Callback
 
-These URLs belong to SurveyOS.
+5. The Project Manager sends these callback URLs to the Client.
 
-⸻
+6. The Client configures these callback URLs inside their own survey platform.
 
-Step 5
+7. The Client sends the final programmed Survey URL or confirms the configuration.
 
-The Project Manager sends these callback URLs to the Client.
+8. The Project Manager stores the Survey URL inside SurveyOS.
 
-⸻
+9. SurveyOS generates Supplier Tracking Links.
 
-Step 6
-
-The Client configures these callback URLs inside their own survey platform.
-
-When respondents finish the survey, the Client redirects them back to SurveyOS using the appropriate callback.
-
-⸻
-
-Step 7
-
-The Client sends the final programmed Survey URL or confirms the survey configuration.
-
-⸻
-
-Step 8
-
-The Project Manager stores the Survey URL inside SurveyOS.
-
-⸻
-
-Step 9
-
-SurveyOS generates Supplier Tracking Links.
-
-Each supplier receives unique tracking links.
-
-⸻
-
-Step 10
-
-Respondents click Supplier Tracking Links.
+10. Respondents click Supplier Tracking Links.
 
 SurveyOS:
 
 - Creates Respondent Session
-- Creates Survey Session
 - Records Supplier
 - Records Project
 - Logs Device Information
@@ -133,11 +84,7 @@ SurveyOS:
 - Checks Quotas
 - Redirects Respondent to Client Survey
 
-⸻
-
-Step 11
-
-The Respondent completes the Client Survey.
+11. The Respondent completes the Client Survey.
 
 The Client redirects the Respondent back to SurveyOS.
 
@@ -148,11 +95,7 @@ Possible callback results:
 - Quota Full
 - Security Terminate
 
-⸻
-
-Step 12
-
-SurveyOS processes the callback.
+12. SurveyOS processes the callback.
 
 SurveyOS:
 
@@ -162,19 +105,15 @@ SurveyOS:
 - Updates Dashboard
 - Updates Reports
 - Updates Quotas
-- Creates Audit Log
+- Creates Audit Log where applicable
 
-⸻
-
-Step 13
-
-Project Managers monitor live fieldwork using SurveyOS dashboards.
+13. Project Managers monitor live fieldwork using SurveyOS dashboards.
 
 The Client continues owning survey programming and responses.
 
-⸻
+---
 
-Core Principles
+## Core Principles
 
 Client owns:
 
@@ -199,10 +138,11 @@ SurveyOS owns:
 - Reports
 - Dashboards
 - Audit Logs
+- Fraud Signals
 
-⸻
+---
 
-Project Integration Module
+## Project Integration Module
 
 Every Project MUST contain an Integration Tab.
 
@@ -241,63 +181,19 @@ Workflow:
 
 This module is mandatory.
 
-⸻
+---
 
-System Workflow
-
-Client
-
-↓
-
-Client Survey Platform
-
-↓
-
-Market Research Agency
-
-↓
-
-SurveyOS
-
-↓
-
-Supplier
-
-↓
-
-Respondent
-
-↓
-
-Client Survey
-
-↓
-
-SurveyOS Callback Processing
-
-↓
-
-Dashboard
-
-↓
-
-Reports
-
-⸻
-
-Architecture Rules
+## Architecture Rules
 
 SurveyOS uses a pnpm Monorepo.
 
 Never change the project architecture without approval.
 
 Keep existing folder structure.
-
 Reuse shared packages.
-
 Keep modules independent.
 
-Every feature must include:
+Every feature must include, where applicable:
 
 - Database
 - API
@@ -307,16 +203,15 @@ Every feature must include:
 - Audit Logs
 - Documentation
 
-⸻
+---
 
-Coding Rules
+## Coding Rules
 
 Always:
 
 - Use TypeScript.
 - Use Prisma.
 - Use PostgreSQL.
-- Use Redis.
 - Use Express API.
 - Use Next.js.
 - Use shared packages.
@@ -328,6 +223,8 @@ Always:
 - Keep commits small.
 - Write maintainable code.
 
+Use Redis only when a caching, queue, session storage, or rate-limiting feature is explicitly approved.
+
 Never:
 
 - Duplicate code.
@@ -336,9 +233,38 @@ Never:
 - Rewrite architecture.
 - Introduce breaking changes without approval.
 
-⸻
+---
 
-Things SurveyOS Never Does
+## Traffic Handling and Quality Alerts
+
+SurveyOS supports flexible supplier traffic.
+
+Each unique tracking click may create a separate Respondent Session when it has a unique session token, respondent identifier, or query parameters.
+
+SurveyOS must preserve supplier query parameters such as:
+
+- rid
+- subid
+- source
+- campaign
+- extra custom parameters
+
+Fraud and quality checks are passive by default.
+
+Fraud signals must not block tracking redirects or callback processing unless strict blocking is explicitly approved by the project owner.
+
+Default mode:
+
+- Allow traffic
+- Track sessions
+- Record quality alerts
+- Let Project Managers review reports manually
+
+Do not implement strict respondent blocking, device fingerprint blocking, IP blocking, or duplicate blocking unless explicitly approved.
+
+---
+
+## Things SurveyOS Never Does
 
 SurveyOS never:
 
@@ -347,72 +273,103 @@ SurveyOS never:
 - Creates survey logic.
 - Stores survey responses.
 - Stores survey questions.
-- Replaces the Client’s survey platform.
+- Replaces the Client's survey platform.
 - Owns survey programming.
 
-⸻
+---
 
-Development Order
+## Development Order
 
-Development phases:
+Completed Backend Phases:
 
 Phase 1
-Foundation
+Project Foundation
 
 Phase 1A
 Foundation Stabilization
 
 Phase 2
-Authentication
+Authentication, Authorization, Sessions
 
 Phase 3
-Organizations
+Organization Management
 
 Phase 4
-Users & Roles
+Project Management
 
 Phase 5
-Clients
+Project Integration and Callback URLs
 
 Phase 6
-Suppliers
+Supplier Management
 
 Phase 7
-Projects
+Supplier Project Assignments and Tracking Links
 
 Phase 8
-Project Integration
+Public Tracking Redirect and Respondent Sessions
 
 Phase 9
-Supplier Tracking Links
+Callback Processing, Outcomes, and Quotas
 
 Phase 10
-Respondent Tracking
+Audit Logs, Fraud Signals, Dashboards, Reports, Export, and Basic Fraud Detection
+
+MVP Final Stabilization
+Smoke Testing and Backend Validation
+
+Current Phase:
 
 Phase 11
-Callback Processing
+Frontend Dashboard
 
-Phase 12
-Quota Engine
+Upcoming Frontend Subphases:
 
-Phase 13
-Reporting
+Phase 11.1
+Frontend Foundation and API Client
 
-Phase 14
-Dashboards
+Phase 11.2
+Authentication Pages
 
-Phase 15
-Notifications
+Phase 11.3
+Organization Dashboard
 
-Phase 16
-Billing
+Phase 11.4
+Project Management UI
 
-Phase 17
-Admin Panel
+Phase 11.5
+Project Integration Tab UI
 
-⸻
+Phase 11.6
+Supplier Management UI
 
-AI Development Rules
+Phase 11.7
+Project Supplier Assignment UI
+
+Phase 11.8
+Respondent Sessions UI
+
+Phase 11.9
+Quotas UI
+
+Phase 11.10
+Dashboard Metrics UI
+
+Phase 11.11
+Audit Logs UI
+
+Phase 11.12
+Fraud Signals UI
+
+Phase 11.13
+Reports Export UI
+
+Phase 11.14
+Final Frontend Testing
+
+---
+
+## AI Development Rules
 
 Before writing any code:
 
