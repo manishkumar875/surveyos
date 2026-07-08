@@ -20,6 +20,7 @@ import { supplierRouter } from './routes/supplier.route.js';
 import { projectIntegrationRouter } from './routes/project-integration.route.js';
 import { projectSupplierRouter } from './routes/project-supplier.route.js';
 import { trackingRouter } from './routes/tracking.route.js';
+import { respondentSessionRouter } from './routes/respondent-session.route.js';
 
 export const createApp = (): Express => {
   const app = express();
@@ -80,6 +81,10 @@ export const createApp = (): Express => {
   app.use(
     `${API_PREFIX}/organizations/:organizationId/projects/:projectId/suppliers`,
     projectSupplierRouter,
+  );
+  app.use(
+    `${API_PREFIX}/organizations/:organizationId/respondent-sessions`,
+    respondentSessionRouter,
   );
 
   app.use('/track', trackingRouter);
