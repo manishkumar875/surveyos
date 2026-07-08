@@ -26,6 +26,8 @@ model Organization {
   suppliers          Supplier[]
   projectSuppliers   ProjectSupplier[]
   respondentSessions RespondentSession[]
+  callbackEvents     CallbackEvent[]
+  projectQuotas      ProjectQuota[]
 }
 
 model User {
@@ -100,6 +102,8 @@ model Project {
 
   suppliers          ProjectSupplier[]
   respondentSessions RespondentSession[]
+  callbackEvents     CallbackEvent[]
+  quotas             ProjectQuota[]
 
   @@index([organizationId])
   @@index([createdById])
@@ -130,6 +134,8 @@ model ProjectIntegration {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  callbackEvents CallbackEvent[]
 
   projectId String  @unique
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -252,6 +258,8 @@ model RespondentSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  callbackEvents CallbackEvent[]
+
   @@index([organizationId])
   @@index([projectId])
   @@index([supplierId])
@@ -260,4 +268,96 @@ model RespondentSession {
   @@index([status])
   @@index([createdAt])
   @@index([startedAt])
+}
+
+// Phase 9: Callback Processing & Quotas
+
+enum CallbackOutcomeType {
+  COMPLETE
+  TERMINATE
+  QUOTA_FULL
+  SECURITY
+  TEST
+}
+
+enum CallbackEventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+model CallbackEvent {
+  id                   String               @id @default(uuid())
+  organizationId       String
+  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  projectId            String
+  project              Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  projectIntegrationId String
+  projectIntegration   ProjectIntegration   @relation(fields: [projectIntegrationId], references: [id], onDelete: Cascade)
+  
+  respondentSessionId  String?
+  respondentSession    RespondentSession?   @relation(fields: [respondentSessionId], references: [id], onDelete: SetNull)
+
+  outcome              CallbackOutcomeType
+  status               CallbackEventStatus  @default(RECEIVED)
+  
+  sessionToken         String?
+  supplierRespondentId String?
+  ipAddress            String?
+  userAgent            String?
+  
+  rawQuery             Json?
+  rawBody              Json?
+  errorMessage         String?
+  
+  receivedAt           DateTime             @default(now())
+  processedAt          DateTime?
+  
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([projectIntegrationId])
+  @@index([respondentSessionId])
+  @@index([sessionToken])
+  @@index([outcome])
+  @@index([status])
+  @@index([receivedAt])
+  @@index([createdAt])
+}
+
+enum QuotaStatus {
+  ACTIVE
+  PAUSED
+  FULL
+  ARCHIVED
+}
+
+model ProjectQuota {
+  id               String       @id @default(uuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  projectId        String
+  project          Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  name             String
+  description      String?
+  targetCompletes  Int
+  currentCompletes Int          @default(0)
+  status           QuotaStatus  @default(ACTIVE)
+  criteria         Json?
+  
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([projectId, name])
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
 }
