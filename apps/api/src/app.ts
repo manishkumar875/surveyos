@@ -19,6 +19,7 @@ import { projectRouter } from './routes/project.route.js';
 import { supplierRouter } from './routes/supplier.route.js';
 import { projectIntegrationRouter } from './routes/project-integration.route.js';
 import { projectSupplierRouter } from './routes/project-supplier.route.js';
+import { projectQuotaRouter } from './routes/project-quota.route.js';
 import { trackingRouter } from './routes/tracking.route.js';
 import { respondentSessionRouter } from './routes/respondent-session.route.js';
 import { callbackRouter } from './routes/callback.route.js';
@@ -82,6 +83,10 @@ export const createApp = (): Express => {
   app.use(
     `${API_PREFIX}/organizations/:organizationId/projects/:projectId/suppliers`,
     projectSupplierRouter,
+  );
+  app.use(
+    `${API_PREFIX}/organizations/:organizationId/projects/:projectId/quotas`,
+    projectQuotaRouter,
   );
   app.use(
     `${API_PREFIX}/organizations/:organizationId/respondent-sessions`,
