@@ -3,11 +3,14 @@
 import React from 'react';
 import { clearAccessToken } from '@/lib/auth-storage';
 import { LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export function Topbar() {
+  const router = useRouter();
+
   const handleLogout = () => {
     clearAccessToken();
-    window.location.href = '/signin';
+    router.push('/signin');
   };
 
   return (
