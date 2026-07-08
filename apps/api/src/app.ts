@@ -21,6 +21,7 @@ import { projectIntegrationRouter } from './routes/project-integration.route.js'
 import { projectSupplierRouter } from './routes/project-supplier.route.js';
 import { trackingRouter } from './routes/tracking.route.js';
 import { respondentSessionRouter } from './routes/respondent-session.route.js';
+import { callbackRouter } from './routes/callback.route.js';
 
 export const createApp = (): Express => {
   const app = express();
@@ -88,6 +89,7 @@ export const createApp = (): Express => {
   );
 
   app.use('/track', trackingRouter);
+  app.use('/callbacks', callbackRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
