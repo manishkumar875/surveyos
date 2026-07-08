@@ -24,6 +24,18 @@ const createProjectQuotaSchema = z.object({
   criteria: z.record(z.any()).optional().nullable(),
 });
 
+const updateProjectQuotaSchema = z.object({
+  name: z.string().min(1, 'Name must be non-empty').optional(),
+  description: z.string().optional().nullable(),
+  targetCompletes: z
+    .number()
+    .int()
+    .positive('targetCompletes must be a positive integer')
+    .optional(),
+  status: z.nativeEnum(QuotaStatus).optional(),
+  criteria: z.record(z.any()).optional().nullable(),
+});
+
 const listProjectQuotasQuerySchema = z.object({
   status: z.nativeEnum(QuotaStatus).optional(),
   search: z.string().optional(),
@@ -303,6 +315,223 @@ projectQuotaRouter.get('/:quotaId', authMiddleware, (req, res) => {
       return res.status(200).json({ success: true, data: formattedData });
     } catch (error) {
       console.error('Error fetching project quota details:', error);
+      return res.status(500).json({ success: false, error: 'An internal server error occurred' });
+    }
+  })();
+});
+
+// Update Project Quota
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+projectQuotaRouter.patch('/:quotaId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const paramsResult = projectQuotaDetailsParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const bodyResult = updateProjectQuotaSchema.safeParse(req.body);
+      if (!bodyResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: bodyResult.error.errors,
+        });
+      }
+
+      const { organizationId, projectId, quotaId } = paramsResult.data;
+      const { name, description, targetCompletes, status, criteria } = bodyResult.data;
+      const requestingUserId = req.user.id;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({ success: false, error: 'Organization not found' });
+      }
+
+      if (membership.role === Role.MEMBER) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions to update quotas',
+        });
+      }
+
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, organizationId },
+      });
+
+      if (!project) {
+        return res.status(404).json({ success: false, error: 'Project not found' });
+      }
+
+      const projectQuota = await prisma.projectQuota.findFirst({
+        where: {
+          id: quotaId,
+          organizationId,
+          projectId,
+        },
+      });
+
+      if (!projectQuota) {
+        return res.status(404).json({ success: false, error: 'Quota not found' });
+      }
+
+      if (name && name !== projectQuota.name) {
+        const existingQuota = await prisma.projectQuota.findUnique({
+          where: {
+            projectId_name: {
+              projectId,
+              name,
+            },
+          },
+        });
+
+        if (existingQuota) {
+          return res
+            .status(409)
+            .json({ success: false, error: 'Quota with this name already exists in this project' });
+        }
+      }
+
+      const updatedQuota = await prisma.projectQuota.update({
+        where: { id: quotaId },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
+          ...(targetCompletes !== undefined && { targetCompletes }),
+          ...(status !== undefined && { status }),
+          ...(criteria !== undefined && {
+            criteria: criteria ? (criteria as Prisma.InputJsonValue) : Prisma.JsonNull,
+          }),
+        },
+      });
+
+      const remainingCompletes = Math.max(
+        0,
+        updatedQuota.targetCompletes - updatedQuota.currentCompletes,
+      );
+      const completionRate =
+        updatedQuota.targetCompletes > 0
+          ? Number((updatedQuota.currentCompletes / updatedQuota.targetCompletes).toFixed(4))
+          : 0;
+
+      const formattedData = {
+        ...updatedQuota,
+        remainingCompletes,
+        completionRate,
+      };
+
+      return res.status(200).json({ success: true, data: formattedData });
+    } catch (error) {
+      console.error('Error updating project quota:', error);
+      return res.status(500).json({ success: false, error: 'An internal server error occurred' });
+    }
+  })();
+});
+
+// Archive Project Quota
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+projectQuotaRouter.delete('/:quotaId', authMiddleware, (req, res) => {
+  void (async () => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const paramsResult = projectQuotaDetailsParamsSchema.safeParse(req.params);
+      if (!paramsResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid path parameters',
+          details: paramsResult.error.errors,
+        });
+      }
+
+      const { organizationId, projectId, quotaId } = paramsResult.data;
+      const requestingUserId = req.user.id;
+
+      const membership = await prisma.membership.findFirst({
+        where: {
+          organizationId,
+          userId: requestingUserId,
+        },
+      });
+
+      if (!membership) {
+        return res.status(404).json({ success: false, error: 'Organization not found' });
+      }
+
+      if (membership.role === Role.MEMBER) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Insufficient permissions to archive quotas',
+        });
+      }
+
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, organizationId },
+      });
+
+      if (!project) {
+        return res.status(404).json({ success: false, error: 'Project not found' });
+      }
+
+      const projectQuota = await prisma.projectQuota.findFirst({
+        where: {
+          id: quotaId,
+          organizationId,
+          projectId,
+        },
+      });
+
+      if (!projectQuota) {
+        return res.status(404).json({ success: false, error: 'Quota not found' });
+      }
+
+      let updatedQuota = projectQuota;
+
+      if (projectQuota.status !== QuotaStatus.ARCHIVED) {
+        updatedQuota = await prisma.projectQuota.update({
+          where: { id: quotaId },
+          data: { status: QuotaStatus.ARCHIVED },
+        });
+      }
+
+      const remainingCompletes = Math.max(
+        0,
+        updatedQuota.targetCompletes - updatedQuota.currentCompletes,
+      );
+      const completionRate =
+        updatedQuota.targetCompletes > 0
+          ? Number((updatedQuota.currentCompletes / updatedQuota.targetCompletes).toFixed(4))
+          : 0;
+
+      const formattedData = {
+        ...updatedQuota,
+        remainingCompletes,
+        completionRate,
+      };
+
+      return res.status(200).json({
+        success: true,
+        message: 'Project quota archived successfully',
+        quota: formattedData,
+      });
+    } catch (error) {
+      console.error('Error archiving project quota:', error);
       return res.status(500).json({ success: false, error: 'An internal server error occurred' });
     }
   })();
