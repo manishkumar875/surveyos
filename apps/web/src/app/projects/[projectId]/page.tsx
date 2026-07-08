@@ -181,6 +181,23 @@ export default function ProjectDetailsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Suppliers Card */}
+        <Link href={`/projects/${projectId}/suppliers` as any} className="group">
+          <div className="rounded-xl border bg-card text-card-foreground shadow transition-colors hover:border-primary/50 hover:shadow-md p-6 h-full flex flex-col">
+            <div className="flex items-center space-x-2 mb-2">
+              <Users className="h-5 w-5 text-primary group-hover:text-primary/80 transition-colors" />
+              <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                Suppliers
+              </h3>
+            </div>
+            <p className="text-sm text-muted-foreground flex-1">
+              Assign traffic sources, generate tracking links, and manage supplier status.
+            </p>
+            <div className="mt-4 flex items-center text-sm font-medium text-primary">
+              Manage Suppliers &rarr;
+            </div>
+          </div>
+        </Link>
         <div className="rounded-xl border bg-card text-card-foreground shadow col-span-2">
           <div className="p-6 pb-2">
             <h3 className="tracking-tight text-sm font-medium text-muted-foreground">
@@ -233,12 +250,17 @@ export default function ProjectDetailsPage() {
           {modules.map((module) => {
             const Icon = module.icon;
 
-            // Integration module is now available
-            if (module.title === 'Integration') {
+            // Integration and Suppliers modules are now available
+            if (module.title === 'Integration' || module.title === 'Suppliers') {
+              const href =
+                module.title === 'Integration'
+                  ? `/projects/${project.id}/integration`
+                  : `/projects/${project.id}/suppliers`;
+
               return (
                 <Link
                   key={module.title}
-                  href={`/projects/${project.id}/integration` as any}
+                  href={href as any}
                   className="rounded-xl border bg-card text-card-foreground shadow transition-all hover:border-primary/50 hover:shadow-md cursor-pointer block"
                 >
                   <div className="p-6 flex flex-col items-center text-center space-y-2">

@@ -142,15 +142,29 @@ export interface UpdateSupplierInput {
   notes?: string | null;
 }
 
+export type ProjectSupplierStatus = 'ACTIVE' | 'PAUSED' | 'INACTIVE' | 'ARCHIVED';
+
 export interface ProjectSupplier {
   id: string;
   projectId: string;
   supplierId: string;
-  status: 'ACTIVE' | 'PAUSED' | 'INACTIVE';
-  cpi?: number;
-  allocation?: number;
+  status: ProjectSupplierStatus;
+  notes?: string | null;
+  trackingUrl?: string;
   createdAt: string;
   updatedAt: string;
+  supplier?: Pick<Supplier, 'id' | 'name' | 'contactName' | 'email' | 'status'>;
+}
+
+export interface AssignSupplierInput {
+  supplierId: string;
+  status?: ProjectSupplierStatus;
+  notes?: string | null;
+}
+
+export interface UpdateProjectSupplierInput {
+  status?: ProjectSupplierStatus;
+  notes?: string | null;
 }
 
 export interface RespondentSession {
