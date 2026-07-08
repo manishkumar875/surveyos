@@ -24,6 +24,8 @@ import { dashboardRouter } from './routes/dashboard.route.js';
 import { trackingRouter } from './routes/tracking.route.js';
 import { respondentSessionRouter } from './routes/respondent-session.route.js';
 import { callbackRouter } from './routes/callback.route.js';
+import { auditLogRouter } from './routes/audit-log.route.js';
+import { fraudSignalRouter } from './routes/fraud-signal.route.js';
 
 export const createApp = (): Express => {
   const app = express();
@@ -90,6 +92,8 @@ export const createApp = (): Express => {
     projectQuotaRouter,
   );
   app.use(`${API_PREFIX}/organizations/:organizationId/dashboard`, dashboardRouter);
+  app.use(`${API_PREFIX}/organizations/:organizationId/audit-logs`, auditLogRouter);
+  app.use(`${API_PREFIX}/organizations/:organizationId/fraud-signals`, fraudSignalRouter);
   app.use(
     `${API_PREFIX}/organizations/:organizationId/respondent-sessions`,
     respondentSessionRouter,
