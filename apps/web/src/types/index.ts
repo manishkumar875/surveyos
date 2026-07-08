@@ -106,12 +106,40 @@ export interface TestIntegrationResult {
   integration: ProjectIntegration;
 }
 
+export type SupplierStatus = 'ACTIVE' | 'PAUSED' | 'INACTIVE' | 'ARCHIVED';
+
 export interface Supplier {
   id: string;
   name: string;
+  contactName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  status: SupplierStatus;
+  notes?: string | null;
   organizationId: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreateSupplierInput {
+  name: string;
+  contactName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  status?: SupplierStatus;
+  notes?: string | null;
+}
+
+export interface UpdateSupplierInput {
+  name?: string;
+  contactName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  status?: SupplierStatus;
+  notes?: string | null;
 }
 
 export interface ProjectSupplier {

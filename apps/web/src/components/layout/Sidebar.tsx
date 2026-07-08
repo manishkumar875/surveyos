@@ -20,7 +20,7 @@ export function Sidebar() {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Organizations', href: '/organizations', icon: Briefcase },
     { name: 'Projects', href: '/projects', icon: FolderKanban },
-    { name: 'Suppliers', href: '#', icon: Users, disabled: true },
+    { name: 'Suppliers', href: '/suppliers', icon: Users },
     { name: 'Reports', href: '#', icon: BarChart3, disabled: true },
     { name: 'Audit Logs', href: '#', icon: ScrollText, disabled: true },
     { name: 'Fraud Signals', href: '#', icon: ShieldAlert, disabled: true },

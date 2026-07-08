@@ -139,10 +139,11 @@ export default function OrganizationDetailsPage() {
             const Icon = module.icon;
 
             // Allow clicking Projects module to go to projects list
-            if (module.title === 'Projects') {
+            if (module.title === 'Projects' || module.title === 'Suppliers') {
+              const href = module.title === 'Projects' ? '/projects' : '/suppliers';
               return (
                 <Link
-                  href={'/projects' as any}
+                  href={href as any}
                   key={module.title}
                   className="rounded-xl border bg-card text-card-foreground shadow transition-all hover:border-primary/50 hover:shadow-md cursor-pointer block"
                 >
