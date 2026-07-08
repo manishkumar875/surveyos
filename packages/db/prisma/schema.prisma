@@ -16,26 +16,27 @@ enum Role {
 }
 
 model Organization {
-  id        String       @id @default(uuid())
+  id        String   @id @default(uuid())
   name      String
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  members   Membership[]
+  members            Membership[]
   projects           Project[]
   suppliers          Supplier[]
   projectSuppliers   ProjectSupplier[]
+  respondentSessions RespondentSession[]
 }
 
 model User {
-  id           String       @id @default(uuid())
-  email        String       @unique
+  id           String   @id @default(uuid())
+  email        String   @unique
   passwordHash String
   firstName    String?
   lastName     String?
-  isActive     Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   memberships     Membership[]
   sessions        Session[]
@@ -43,16 +44,16 @@ model User {
 }
 
 model Membership {
-  id             String       @id @default(uuid())
-  role           Role         @default(MEMBER)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id        String   @id @default(uuid())
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, userId])
 }
@@ -64,8 +65,8 @@ model Session {
   createdAt DateTime  @default(now())
   revokedAt DateTime?
 
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Phase 4: Project Management
@@ -79,30 +80,31 @@ enum ProjectStatus {
 }
 
 model Project {
-  id             String        @id @default(uuid())
-  name           String
-  description    String?
-  clientName     String
-  status         ProjectStatus @default(DRAFT)
-  startDate      DateTime?
-  endDate        DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  clientName  String
+  status      ProjectStatus @default(DRAFT)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   organizationId String
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  createdById    String
-  createdBy      User          @relation("UserProjects", fields: [createdById], references: [id], onDelete: Restrict)
+  createdById String
+  createdBy   User   @relation("UserProjects", fields: [createdById], references: [id], onDelete: Restrict)
 
-  integration    ProjectIntegration?
+  integration ProjectIntegration?
+
+  suppliers          ProjectSupplier[]
+  respondentSessions RespondentSession[]
 
   @@index([organizationId])
   @@index([createdById])
   @@index([status])
   @@index([createdAt])
-
-  suppliers      ProjectSupplier[]
 }
 
 // Phase 5: Project Integration
@@ -115,22 +117,22 @@ enum IntegrationStatus {
 }
 
 model ProjectIntegration {
-  id                     String            @id @default(uuid())
-  clientSurveyUrl        String?
-  status                 IntegrationStatus @default(WAITING)
-  parameterMapping       Json?
+  id               String            @id @default(uuid())
+  clientSurveyUrl  String?
+  status           IntegrationStatus @default(WAITING)
+  parameterMapping Json?
 
-  completeCallbackToken  String            @unique @default(uuid())
-  terminateCallbackToken String            @unique @default(uuid())
-  quotaFullCallbackToken String            @unique @default(uuid())
-  securityCallbackToken  String            @unique @default(uuid())
-  testCallbackToken      String            @unique @default(uuid())
+  completeCallbackToken  String @unique @default(uuid())
+  terminateCallbackToken String @unique @default(uuid())
+  quotaFullCallbackToken String @unique @default(uuid())
+  securityCallbackToken  String @unique @default(uuid())
+  testCallbackToken      String @unique @default(uuid())
 
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  projectId              String            @unique
-  project                Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([status])
@@ -146,28 +148,29 @@ enum SupplierStatus {
 }
 
 model Supplier {
-  id             String         @id @default(uuid())
+  id             String       @id @default(uuid())
   organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
-  name           String
-  contactName    String?
-  email          String?
-  phone          String?
-  website        String?
-  status         SupplierStatus @default(ACTIVE)
-  notes          String?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  website     String?
+  status      SupplierStatus @default(ACTIVE)
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects           ProjectSupplier[]
+  respondentSessions RespondentSession[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
   @@index([status])
   @@index([name])
   @@index([createdAt])
-
-  projects       ProjectSupplier[]
 }
 
 // Phase 7: Supplier Project Assignment
@@ -179,22 +182,24 @@ enum ProjectSupplierStatus {
 }
 
 model ProjectSupplier {
-  id             String                @id @default(uuid())
+  id             String       @id @default(uuid())
   organizationId String
-  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
-  projectId      String
-  project        Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  supplierId     String
-  supplier       Supplier              @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  status         ProjectSupplierStatus @default(ACTIVE)
-  trackingToken  String                @unique @default(uuid())
-  notes          String?
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  status        ProjectSupplierStatus @default(ACTIVE)
+  trackingToken String                @unique @default(uuid())
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  respondentSessions RespondentSession[]
 
   @@unique([projectId, supplierId])
   @@index([organizationId])
@@ -203,4 +208,56 @@ model ProjectSupplier {
   @@index([status])
   @@index([trackingToken])
   @@index([createdAt])
+}
+
+// Phase 8: Respondent Tracking
+
+enum RespondentSessionStatus {
+  STARTED
+  REDIRECTED
+  COMPLETED
+  TERMINATED
+  QUOTA_FULL
+  SECURITY
+  ABANDONED
+}
+
+model RespondentSession {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  projectSupplierId String
+  projectSupplier   ProjectSupplier @relation(fields: [projectSupplierId], references: [id], onDelete: Cascade)
+
+  sessionToken         String                  @unique @default(uuid())
+  supplierRespondentId String?
+  status               RespondentSessionStatus @default(STARTED)
+  ipAddress            String?
+  userAgent            String?
+  entryUrl             String?
+  redirectUrl          String?
+  metadata             Json?
+
+  startedAt    DateTime  @default(now())
+  redirectedAt DateTime?
+  completedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([supplierId])
+  @@index([projectSupplierId])
+  @@index([sessionToken])
+  @@index([status])
+  @@index([createdAt])
+  @@index([startedAt])
 }
