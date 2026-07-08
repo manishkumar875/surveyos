@@ -62,19 +62,48 @@ export interface UpdateProjectInput {
   status?: string;
 }
 
+export type IntegrationStatus = 'WAITING' | 'TESTING' | 'LIVE' | 'FAILED';
+
+export interface CallbackUrls {
+  completeCallbackUrl: string;
+  terminateCallbackUrl: string;
+  quotaFullCallbackUrl: string;
+  securityCallbackUrl: string;
+  testCallbackUrl: string;
+}
+
 export interface ProjectIntegration {
   id: string;
   projectId: string;
-  clientSurveyUrl?: string;
-  completeUrl?: string;
-  terminateUrl?: string;
-  quotaFullUrl?: string;
-  securityUrl?: string;
-  testUrl?: string;
-  parameterMapping?: Record<string, string>;
-  status: 'WAITING' | 'TESTING' | 'LIVE' | 'FAILED';
+  clientSurveyUrl?: string | null;
+  parameterMapping?: Record<string, string[]> | null;
+  status: IntegrationStatus;
+  callbackUrls: CallbackUrls;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UpdateProjectIntegrationInput {
+  clientSurveyUrl?: string | null;
+  parameterMapping?: Record<string, string[]> | null;
+}
+
+export interface TestIntegrationChecks {
+  integrationExists: boolean;
+  clientSurveyUrlExists: boolean;
+  completeCallbackUrlExists: boolean;
+  terminateCallbackUrlExists: boolean;
+  quotaFullCallbackUrlExists: boolean;
+  securityCallbackUrlExists: boolean;
+  testCallbackUrlExists: boolean;
+}
+
+export interface TestIntegrationResult {
+  success: boolean;
+  message: string;
+  passed: boolean;
+  checks: TestIntegrationChecks;
+  integration: ProjectIntegration;
 }
 
 export interface Supplier {

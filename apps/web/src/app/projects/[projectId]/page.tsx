@@ -232,6 +232,29 @@ export default function ProjectDetailsPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {modules.map((module) => {
             const Icon = module.icon;
+
+            // Integration module is now available
+            if (module.title === 'Integration') {
+              return (
+                <Link
+                  key={module.title}
+                  href={`/projects/${project.id}/integration` as any}
+                  className="rounded-xl border bg-card text-card-foreground shadow transition-all hover:border-primary/50 hover:shadow-md cursor-pointer block"
+                >
+                  <div className="p-6 flex flex-col items-center text-center space-y-2">
+                    <div className={`p-3 rounded-full bg-muted ${module.color}`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <h4 className="font-semibold">{module.title}</h4>
+                    <p className="text-sm text-muted-foreground">{module.description}</p>
+                    <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-semibold mt-2">
+                      Available
+                    </span>
+                  </div>
+                </Link>
+              );
+            }
+
             return (
               <div
                 key={module.title}
