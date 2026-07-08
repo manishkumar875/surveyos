@@ -250,12 +250,18 @@ export default function ProjectDetailsPage() {
           {modules.map((module) => {
             const Icon = module.icon;
 
-            // Integration and Suppliers modules are now available
-            if (module.title === 'Integration' || module.title === 'Suppliers') {
+            // Integration, Suppliers, and Respondent Sessions are now available
+            if (
+              module.title === 'Integration' ||
+              module.title === 'Suppliers' ||
+              module.title === 'Respondent Sessions'
+            ) {
               const href =
                 module.title === 'Integration'
                   ? `/projects/${project.id}/integration`
-                  : `/projects/${project.id}/suppliers`;
+                  : module.title === 'Suppliers'
+                    ? `/projects/${project.id}/suppliers`
+                    : `/projects/${project.id}/sessions`;
 
               return (
                 <Link

@@ -167,16 +167,69 @@ export interface UpdateProjectSupplierInput {
   notes?: string | null;
 }
 
+export type RespondentSessionStatus =
+  'STARTED' | 'REDIRECTED' | 'COMPLETED' | 'TERMINATED' | 'QUOTA_FULL' | 'SECURITY' | 'ABANDONED';
+
+export interface RespondentSessionProject {
+  id: string;
+  name: string;
+  status: string;
+  clientName?: string | null;
+}
+
+export interface RespondentSessionSupplier {
+  id: string;
+  name: string;
+  contactName?: string | null;
+  email?: string | null;
+  status: string;
+}
+
+export interface RespondentSessionProjectSupplier {
+  id: string;
+  status: string;
+  notes?: string | null;
+}
+
 export interface RespondentSession {
   id: string;
+  organizationId: string;
   projectId: string;
   supplierId: string;
-  status: 'STARTED' | 'COMPLETE' | 'TERMINATE' | 'QUOTA_FULL' | 'SECURITY_TERMINATE';
-  ipAddress?: string;
-  userAgent?: string;
-  startedAt: string;
-  completedAt?: string;
-  supplierParams?: Record<string, string>;
+  projectSupplierId?: string | null;
+  sessionToken: string;
+  supplierRespondentId?: string | null;
+  status: RespondentSessionStatus;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  entryUrl?: string | null;
+  redirectUrl?: string | null;
+  metadata?: Record<string, unknown> | null;
+  startedAt?: string | null;
+  redirectedAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  project?: RespondentSessionProject | null;
+  supplier?: RespondentSessionSupplier | null;
+  projectSupplier?: RespondentSessionProjectSupplier | null;
+}
+
+export interface RespondentSessionPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface RespondentSessionListFilters {
+  projectId?: string;
+  supplierId?: string;
+  projectSupplierId?: string;
+  status?: RespondentSessionStatus;
+  supplierRespondentId?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface ProjectQuota {
